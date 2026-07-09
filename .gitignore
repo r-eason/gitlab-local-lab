@@ -1,0 +1,23 @@
+# ==============================================================================
+#                 🔬 STANDALONE TESTING LABORATORY GITIGNORE
+# ==============================================================================
+
+# 1. DYNAMIC RUNTIME CONFIGURATIONS (NEVER COMMITTED)
+# Block the auto-generated runner configuration file containing dynamic host paths
+runner/config.toml
+
+# 2. Giant persistent volume databases and log tracking paths
+/data/
+
+# 3. Auto-generated cryptographic components and extensions sheets
+certs/*.crt
+certs/*.key
+certs/*.csr
+certs/*.ext
+certs/*.srl
+
+# 4. System workstation metadata
+.DS_Store
+.idea/
+.vscode/
+

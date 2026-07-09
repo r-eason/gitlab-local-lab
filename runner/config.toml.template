@@ -1,0 +1,13 @@
+# ==============================================================================
+# GLOBAL RUNNER LIFECYCLE DEFAULTS (PRUNED BLUEPRINT CONTEXT)
+# ==============================================================================
+concurrent = 2
+check_interval = 5
+
+[session_server]
+  session_timeout = 1800
+
+# REQUIRED FOOTPRINT: The merging engine requires exactly one entry to overlay
+# your custom direct execution flags onto. Do not define a token line here.
+[[runners]]
+
