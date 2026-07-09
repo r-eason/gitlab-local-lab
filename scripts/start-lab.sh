@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# SYSTEM LAB ENGINE LIFECYCLE MANAGEMENT UNIT (DYNAMIC RE-ENTRY & GATEWAYS)
+# SYSTEM LAB ENGINE LIFECYCLE MANAGEMENT UNIT (CLEAN INITIAL SLATE)
 # ==============================================================================
 set -euo pipefail
 
@@ -36,19 +36,17 @@ podman network create gitlab-net || true
 LAB_GATEWAY_IP=$(podman network inspect gitlab-net -f '{{range .Subnets}}{{.Gateway}}{{end}}')
 echo "=== Detected Active Podman Bridge Gateway IP: ${LAB_GATEWAY_IP} ==="
 
+# CRITICAL SECURITY FIX: Create an entirely BLANK configuration file.
+# This prevents the container from loading old schema validation panics on boot.
+echo "" > runner/config.toml
+
 # 1. Run Certificate Provisioner automatically if missing
 if [ ! -f certs/gitlab.local.crt ]; then
     ./scripts/generate-certs.sh
     cd "${ABSOLUTE_LAB_PATH}"
 fi
 
-# 2. Compile the Template using both your absolute path AND your live gateway IP
-echo "=== Compiling dynamic runner configuration paths ==="
-sed -e "s|__HOST_PROJECT_PATH__|${ABSOLUTE_LAB_PATH}|g" \
-    -e "s|__LAB_GATEWAY_IP__|${LAB_GATEWAY_IP}|g" \
-    runner/config.toml.template > runner/config.toml
-
-# 3. Local DNS Loopback Verification Check
+# 2. Local DNS Loopback Verification Check
 if ! grep -q "gitlab.local" /etc/hosts; then
     echo "--- Modifying /etc/hosts for resolution (Requires authorization) ---"
     echo "127.0.0.1 gitlab.local" | sudo tee -a /etc/hosts
@@ -84,9 +82,11 @@ podman run -d \
 # ENGINE START: GITLAB RUNNER (SOCKET REASSIGNMENT AND USERNS ACTIVE)
 # ==============================================================================
 echo "=== Spinning Up Secure Local GitLab Runner ==="
+# CRITICAL: We inject --add-host to forcefully bind the domain to the bridge gateway IP
 podman run -d \
   --name gitlab-runner \
   --network gitlab-net \
+  --add-host "gitlab.local:${LAB_GATEWAY_IP}" \
   --userns=keep-id:uid=0,gid=0 \
   --security-opt label=disable \
   -v "${PODMAN_SOCKET_PATH}:/var/run/docker.sock:ro" \
@@ -94,6 +94,7 @@ podman run -d \
   -v "${ABSOLUTE_LAB_PATH}/certs/lab-ca.crt:/etc/gitlab-runner/certs/gitlab.local.crt:ro,Z" \
   docker.io/gitlab/gitlab-runner:latest
 
+# AUTOMATED DEBIAN/UBUNTU TRUST INJECTION GATEWAY
 echo "=== Injecting CA Trust Anchor into Runner's Native Ubuntu DB ==="
 sleep 2 # Brief pause to allow the container filesystem mapping to initialize
 podman cp "${ABSOLUTE_LAB_PATH}/certs/lab-ca.crt" gitlab-runner:/usr/local/share/ca-certificates/gitlab.local.crt

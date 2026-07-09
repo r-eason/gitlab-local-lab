@@ -1,13 +1,34 @@
 # ==============================================================================
-# GLOBAL RUNNER LIFECYCLE DEFAULTS (PRUNED BLUEPRINT CONTEXT)
+# UNIFIED UNPRIVILEGED CONFIGURATION bluePRINT (POST-REGISTRATION TARGET)
 # ==============================================================================
-concurrent = 2
+concurrent = 4
 check_interval = 5
 
 [session_server]
   session_timeout = 1800
 
-# REQUIRED FOOTPRINT: The merging engine requires exactly one entry to overlay
-# your custom direct execution flags onto. Do not define a token line here.
 [[runners]]
+  name = "local-unified-executor"
+  url = "https://gitlab.local:8443"
+  executor = "docker"
+
+  [runners.custom_build_dir]
+  [runners.cache]
+    MaxUploadedArchiveSize = 0
+
+  [runners.docker]
+    tls_verify = true
+    image = "quay.io/podman/stable:latest"
+    privileged = false  # <-- ENFORCES UNPRIVILEGED SANDBOX BY DEFAULT
+    disable_entrypoint_overwrite = false
+    oom_kill_disable = false
+    disable_cache = false
+
+    volumes = [
+      "/cache",
+      "__HOST_PROJECT_PATH__/certs/lab-ca.crt:/etc/pki/ca-trust/source/anchors/lab-ca.crt:ro,Z"
+    ]
+
+    pre_build_script = "update-ca-trust"
+    shm_size = 2147483648
 
